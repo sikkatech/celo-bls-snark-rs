@@ -34,9 +34,6 @@ default = ["compat"]
 print-trace = ["bench-utils/print-trace"]
 compat = ["bls-crypto/compat", "bls-gadgets/compat"]
 
-[lib]
-crate-type = ["lib", "staticlib"]
-
 [[example]]
 name = "proof"
 path = "examples/proof.rs"

@@ -14,7 +14,7 @@ rand = "0.7.3"
 log = "0.4.8"
 
 [lib]
-crate-type = ["lib", "staticlib"]
+crate-type = ["cdylib"]
 
 [dev-dependencies]
 groth16 = { git = "https://github.com/celo-org/zexe", features = ["parallel"] }

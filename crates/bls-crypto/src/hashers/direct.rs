@@ -20,6 +20,10 @@ fn xof_digest_length_to_node_offset(
 impl Hasher for DirectHasher {
     type Error = BLSError;
 
+    fn new() -> Result<Self, Self::Error> {
+        Ok(DirectHasher{})
+    }
+
     fn crh(
         &self,
         domain: &[u8],

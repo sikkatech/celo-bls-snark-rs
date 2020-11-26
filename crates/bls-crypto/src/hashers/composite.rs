@@ -44,13 +44,6 @@ pub struct CompositeHasher<H: FixedLengthCRH> {
 }
 
 impl<H: FixedLengthCRH> CompositeHasher<H> {
-    /// Initializes the CRH and returns a new hasher
-    pub fn new() -> Result<CompositeHasher<H>, BLSError> {
-        Ok(CompositeHasher {
-            parameters: Self::setup_crh()?,
-        })
-    }
-
     fn prng() -> impl Rng {
         let hash_result = Params::new()
             .hash_length(32)
@@ -74,6 +67,13 @@ impl<H: FixedLengthCRH> CompositeHasher<H> {
 
 impl<H: FixedLengthCRH<Output = EdwardsProjective>> Hasher for CompositeHasher<H> {
     type Error = BLSError;
+
+    /// Initializes the CRH and returns a new hasher
+    fn new() -> Result<CompositeHasher<H>, BLSError> {
+        Ok(CompositeHasher {
+            parameters: Self::setup_crh()?,
+        })
+    }
 
     // TODO: Should we improve the trait design somehow? Seems like there's a bad abstraction
     // here if we do not use the 2 params

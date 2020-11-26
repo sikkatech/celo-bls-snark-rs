@@ -47,9 +47,11 @@ pub mod try_and_increment_cip22;
 use crate::BLSError;
 
 /// Trait for hashing arbitrary data to a group element on an elliptic curve
-pub trait HashToCurve {
+pub trait HashToCurve : Sized {
     /// The type of the curve being used.
     type Output;
+    
+    fn new() -> Result<Self, BLSError>;
 
     /// Given a domain separator, and a message, produce
     /// a hash of them which is a curve point in the prime order subgroup.
@@ -63,9 +65,11 @@ pub trait HashToCurve {
 /// Trait for hashes from arbitrary data to a group element, 
 /// where the hash contains a sub-routine of the form:
 /// XOF(extra_data, CRH(msg)).
-pub trait CrhAndXofHashToCurve {
+pub trait CrhAndXofHashToCurve : Sized {
     /// The type of the curve being used.
     type Output;
+
+    fn new() -> Result<Self, BLSError>;
 
     /// Given a domain separator, a message and extra data, 
     /// produce a hash of them which is a curve point
@@ -80,6 +84,11 @@ pub trait CrhAndXofHashToCurve {
 impl<Alg: CrhAndXofHashToCurve> HashToCurve for Alg
 {
     type Output = Alg::Output;
+
+    fn new() -> Result<Self, BLSError>
+    {
+        Alg::new()
+    }
 
     fn hash(
         &self,
@@ -127,30 +136,26 @@ mod test {
 
     #[test]
     fn hash_to_curve_direct_g1() {
-        let h = DirectHasher;
-        hash_to_curve_test::<<Parameters as Bls12Parameters>::G1Parameters, _>(h)
+        hash_to_curve_test::<<Parameters as Bls12Parameters>::G1Parameters, DirectHasher>()
     }
 
     #[test]
     fn hash_to_curve_composite_g1() {
-        let h = CompositeHasher::<CRH>::new().unwrap();
-        hash_to_curve_test::<<Parameters as Bls12Parameters>::G1Parameters, _>(h)
+        hash_to_curve_test::<<Parameters as Bls12Parameters>::G1Parameters, CompositeHasher::<CRH>>()
     }
 
     #[test]
     fn hash_to_curve_direct_g2() {
-        let h = DirectHasher;
-        hash_to_curve_test::<<Parameters as Bls12Parameters>::G2Parameters, _>(h)
+        hash_to_curve_test::<<Parameters as Bls12Parameters>::G2Parameters, DirectHasher>()
     }
 
     #[test]
     fn hash_to_curve_composite_g2() {
-        let h = CompositeHasher::<CRH>::new().unwrap();
-        hash_to_curve_test::<<Parameters as Bls12Parameters>::G2Parameters, _>(h)
+        hash_to_curve_test::<<Parameters as Bls12Parameters>::G2Parameters, CompositeHasher::<CRH>>()
     }
 
-    fn hash_to_curve_test<P: SWModelParameters, X: Hasher<Error = BLSError>>(h: X) {
-        let hasher = TryAndIncrement::<X, P>::new(&h);
+    fn hash_to_curve_test<P: SWModelParameters, X: Hasher<Error = BLSError>>() {
+        let hasher = <TryAndIncrement::<X, P> as CrhAndXofHashToCurve>::new().unwrap();
         let mut rng = rand::thread_rng();
         for length in &[10, 25, 50, 100, 200, 300] {
             let mut input = vec![0; *length];
@@ -221,7 +226,8 @@ mod compat_tests {
     use super::*;
     use crate::hash_to_curve::try_and_increment::TryAndIncrement;
     use crate::hash_to_curve::try_and_increment_cip22::TryAndIncrementCIP22;
-    use crate::hashers::{composite::COMPOSITE_HASHER, Hasher};
+    use crate::hashers::Hasher;
+    use crate::hashers::composite::{COMPOSITE_HASHER, CompositeHasher, CRH};
     use algebra::bls12::{G1Affine, G1Projective};
     use algebra::{
         bls12_377::Parameters,
@@ -349,9 +355,8 @@ mod compat_tests {
         let mut rng = XorShiftRng::from_seed(RNG_SEED);
         let expected_hashes = generate_compat_expected_hashes(1000);
 
-        let hasher = TryAndIncrement::<_, <Parameters as Bls12Parameters>::G1Parameters>::new(
-            &*COMPOSITE_HASHER,
-        );
+        let hasher = <TryAndIncrement::<CompositeHasher::<CRH>, 
+            <Parameters as Bls12Parameters>::G1Parameters> as CrhAndXofHashToCurve>::new().unwrap();
         super::test::test_hash_to_group(&hasher, &mut rng, expected_hashes)
     }
 
@@ -373,9 +378,8 @@ mod compat_tests {
             "b68e1db4b648801676a79ac199eaf003757bf2a96cdbb804bfefe0484afdc0cc299d50d660221d1de374e92c44291280",
         ].into_iter().map(|x| hex::decode(&x).unwrap()).collect::<Vec<_>>();
 
-        let hasher = TryAndIncrement::<_, <Parameters as Bls12Parameters>::G1Parameters>::new(
-            &*COMPOSITE_HASHER,
-        );
+        let hasher = <TryAndIncrement::<CompositeHasher::<CRH>, 
+            <Parameters as Bls12Parameters>::G1Parameters> as CrhAndXofHashToCurve>::new().unwrap();
         super::test::test_hash_to_group(&hasher, &mut rng, expected_hashes)
     }
 
@@ -396,9 +400,8 @@ mod compat_tests {
             "acbb3071d0899488ba69ce1592f49c20dada7598690f8393cca80d4abeca0dc6dec112c70228328d68f8f34d3795d100",
         ].into_iter().map(|x| hex::decode(&x).unwrap()).collect::<Vec<_>>();
 
-        let hasher = TryAndIncrementCIP22::<_, <Parameters as Bls12Parameters>::G1Parameters>::new(
-            &*COMPOSITE_HASHER,
-        );
+        let hasher = <TryAndIncrementCIP22::<CompositeHasher::<CRH>, 
+            <Parameters as Bls12Parameters>::G1Parameters> as CrhAndXofHashToCurve>::new().unwrap();
         super::test::test_hash_to_group_cip22(&hasher, &mut rng, expected_hashes)
     }
 }
@@ -407,7 +410,8 @@ mod compat_tests {
 mod non_compat_tests {
     use crate::hash_to_curve::try_and_increment::TryAndIncrement;
     use crate::hash_to_curve::try_and_increment::COMPOSITE_HASH_TO_G1;
-    use crate::hashers::composite::COMPOSITE_HASHER;
+    use crate::hashers::Hasher;
+    use crate::hashers::composite::{COMPOSITE_HASHER, CompositeHasher, CRH};
     use algebra::{bls12_377::Parameters, curves::models::bls12::Bls12Parameters};
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;

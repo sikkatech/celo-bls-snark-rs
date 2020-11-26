@@ -87,16 +87,14 @@ mod tests {
 
     #[test]
     fn test_simple_sig() {
-        let direct_hasher = DirectHasher;
-        let composite_hasher = CompositeHasher::<CRH>::new().unwrap();
-        test_simple_sig_with_hasher(direct_hasher);
-        test_simple_sig_with_hasher(composite_hasher);
+        test_simple_sig_with_hasher::<DirectHasher>();
+        test_simple_sig_with_hasher::<CompositeHasher::<CRH>>();
     }
 
-    fn test_simple_sig_with_hasher<X: Hasher<Error = BLSError>>(hasher: X) {
+    fn test_simple_sig_with_hasher<X: Hasher<Error = BLSError>>() {
         let rng = &mut thread_rng();
         let try_and_increment =
-            TryAndIncrement::<_, <Parameters as Bls12Parameters>::G1Parameters>::new(&hasher);
+            TryAndIncrement::<X, <Parameters as Bls12Parameters>::G1Parameters>::new().unwrap();
         for _ in 0..10 {
             let mut message: Vec<u8> = vec![];
             for _ in 0..32 {
@@ -117,11 +115,9 @@ mod tests {
     #[test]
     fn test_pop() {
         let rng = &mut thread_rng();
-        let direct_hasher = DirectHasher;
         let try_and_increment =
-            TryAndIncrement::<_, <Parameters as Bls12Parameters>::G1Parameters>::new(
-                &direct_hasher,
-            );
+            TryAndIncrement::<DirectHasher, 
+                <Parameters as Bls12Parameters>::G1Parameters>::new().unwrap();
 
         let sk = PrivateKey::generate(rng);
         let sk2 = PrivateKey::generate(rng);

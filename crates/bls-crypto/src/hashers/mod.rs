@@ -6,9 +6,12 @@ pub use direct::DirectHasher;
 
 /// A hasher groups together collision resistant (CRH) and extendable output (XOF) functions in order
 /// to produce a hash of the input.
-pub trait Hasher {
+pub trait Hasher: Sized {
     /// The returned error type from each hashing call
     type Error;
+
+    /// Returns 
+    fn new() -> Result<Self, Self::Error>;
 
     /// Runs a collision resistant function over the input with the specified domain
     /// This function is typicaly used on a long input to compress it to a desired length

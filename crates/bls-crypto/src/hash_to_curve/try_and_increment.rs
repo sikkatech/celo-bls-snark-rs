@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 
 use super::CrhAndXofHashToCurve;
 use crate::hashers::{
-    composite::{CompositeHasher, COMPOSITE_HASHER, CRH},
+    composite::{CompositeHasher, CRH},
     DirectHasher, Hasher,
 };
 use crate::BLSError;
@@ -25,43 +25,38 @@ const NUM_TRIES: u8 = 255;
 /// Composite (Bowe-Hopwood CRH, Blake2x XOF) Try-and-Increment hasher for BLS 12-377.
 pub static COMPOSITE_HASH_TO_G1: Lazy<
     TryAndIncrement<CompositeHasher<CRH>, <Parameters as Bls12Parameters>::G1Parameters>,
-> = Lazy::new(|| TryAndIncrement::new(&*COMPOSITE_HASHER));
+> = Lazy::new(|| TryAndIncrement::new().unwrap());
 
 /// Direct (Blake2s CRH, Blake2x XOF) Try-and-Increment hasher for BLS 12-377.
 /// Equivalent to Blake2xs.
 pub static DIRECT_HASH_TO_G1: Lazy<
     TryAndIncrement<DirectHasher, <Parameters as Bls12Parameters>::G1Parameters>,
-> = Lazy::new(|| TryAndIncrement::new(&DirectHasher));
+> = Lazy::new(|| TryAndIncrement::new().unwrap());
 
 /// A try-and-increment method for hashing to G1 and G2. See page 521 in
 /// https://link.springer.com/content/pdf/10.1007/3-540-45682-1_30.pdf.
 #[derive(Clone)]
-pub struct TryAndIncrement<'a, H, P> {
-    hasher: &'a H,
+pub struct TryAndIncrement<H, P> {
+    hasher: H,
     curve_params: PhantomData<P>,
 }
 
-impl<'a, H, P> TryAndIncrement<'a, H, P>
-where
-    H: Hasher<Error = BLSError>,
-    P: SWModelParameters,
-{
-    /// Instantiates a new Try-and-increment hasher with the provided hashing method
-    /// and curve parameters based on the type
-    pub fn new(h: &'a H) -> Self {
-        TryAndIncrement {
-            hasher: h,
-            curve_params: PhantomData,
-        }
-    }
-}
-
-impl<'a, H, P> CrhAndXofHashToCurve for TryAndIncrement<'a, H, P>
+impl<'a, H, P> CrhAndXofHashToCurve for TryAndIncrement<H, P>
 where
     H: Hasher<Error = BLSError>,
     P: SWModelParameters,
 {
     type Output = GroupProjective<P>;
+
+    /// Instantiates a new Try-and-increment hasher with the provided hashing method
+    /// and curve parameters based on the type
+    fn new() -> Result<Self, BLSError> {
+        let hasher = H::new()?;
+        Ok(TryAndIncrement {
+            hasher,
+            curve_params: PhantomData,
+        })
+    }
 
     fn hash(
         &self,
@@ -74,7 +69,7 @@ where
     }
 }
 
-impl<'a, H, P> TryAndIncrement<'a, H, P>
+impl<H, P> TryAndIncrement<H, P>
 where
     H: Hasher<Error = BLSError>,
     P: SWModelParameters,

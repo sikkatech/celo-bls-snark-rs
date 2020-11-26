@@ -142,7 +142,7 @@ mod tests {
             try_and_increment::{TryAndIncrement, COMPOSITE_HASH_TO_G1},
             try_and_increment_cip22::COMPOSITE_HASH_TO_G1_CIP22,
         },
-        hashers::{composite::COMPOSITE_HASHER, DirectHasher},
+        hashers::{composite::CompositeHasher, composite::CRH, DirectHasher},
         test_helpers::{keygen_batch, sign_batch, sum},
         PrivateKey, PublicKeyCache, SIG_DOMAIN,
     };
@@ -210,18 +210,18 @@ mod tests {
     #[test]
     fn test_batch_verify() {
         let try_and_increment_direct =
-            TryAndIncrement::<_, <Parameters as Bls12Parameters>::G1Parameters>::new(&DirectHasher);
+            TryAndIncrement::<DirectHasher, <Parameters as Bls12Parameters>::G1Parameters>::new().unwrap();
         test_batch_verify_with_hasher(&try_and_increment_direct, false, false);
         let try_and_increment_composite = TryAndIncrement::<
-            _,
+            CompositeHasher::<CRH>,
             <Parameters as Bls12Parameters>::G1Parameters,
-        >::new(&*COMPOSITE_HASHER);
+        >::new().unwrap();
         for &cip22 in &[false, true] {
             test_batch_verify_with_hasher(&try_and_increment_composite, true, cip22);
             let try_and_increment_composite_cip22 = TryAndIncrementCIP22::<
-                _,
+                CompositeHasher::<CRH>,
                 <Parameters as Bls12Parameters>::G1Parameters,
-            >::new(&*COMPOSITE_HASHER);
+            >::new().unwrap();
             test_batch_verify_with_hasher(&try_and_increment_composite_cip22, true, cip22);
         }
     }

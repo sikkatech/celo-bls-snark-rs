@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 
 use super::CrhAndXofHashToCurve;
 use crate::hashers::{
-    composite::{CompositeHasher, COMPOSITE_HASHER, CRH},
+    composite::{CompositeHasher, CRH},
     Hasher,
 };
 use crate::BLSError;
@@ -25,37 +25,32 @@ const NUM_TRIES: u8 = 255;
 /// Composite (Bowe-Hopwood CRH, Blake2x XOF) Try-and-Increment hasher for BLS 12-377.
 pub static COMPOSITE_HASH_TO_G1_CIP22: Lazy<
     TryAndIncrementCIP22<CompositeHasher<CRH>, <Parameters as Bls12Parameters>::G1Parameters>,
-> = Lazy::new(|| TryAndIncrementCIP22::new(&*COMPOSITE_HASHER));
+> = Lazy::new(|| TryAndIncrementCIP22::new().unwrap());
 
 /// A try-and-increment method for hashing to G1 and G2. See page 521 in
 /// https://link.springer.com/content/pdf/10.1007/3-540-45682-1_30.pdf.
 #[derive(Clone)]
-pub struct TryAndIncrementCIP22<'a, H, P> {
-    hasher: &'a H,
+pub struct TryAndIncrementCIP22<H, P> {
+    hasher: H,
     curve_params: PhantomData<P>,
 }
 
-impl<'a, H, P> TryAndIncrementCIP22<'a, H, P>
-where
-    H: Hasher<Error = BLSError>,
-    P: SWModelParameters,
-{
-    /// Instantiates a new Try-and-increment hasher with the provided hashing method
-    /// and curve parameters based on the type
-    pub fn new(h: &'a H) -> Self {
-        TryAndIncrementCIP22 {
-            hasher: h,
-            curve_params: PhantomData,
-        }
-    }
-}
-
-impl<'a, H, P> CrhAndXofHashToCurve for TryAndIncrementCIP22<'a, H, P>
+impl<H, P> CrhAndXofHashToCurve for TryAndIncrementCIP22<H, P>
 where
     H: Hasher<Error = BLSError>,
     P: SWModelParameters,
 {
     type Output = GroupProjective<P>;
+
+    /// Instantiates a new Try-and-increment hasher with the provided hashing method
+    /// and curve parameters based on the type
+    fn new() -> Result<Self, BLSError> {
+        let hasher = H::new()?;
+        Ok(TryAndIncrementCIP22 {
+            hasher,
+            curve_params: PhantomData,
+        })
+    }
 
     fn hash(
         &self,
@@ -68,7 +63,7 @@ where
     }
 }
 
-impl<'a, H, P> TryAndIncrementCIP22<'a, H, P>
+impl<H, P> TryAndIncrementCIP22<H, P>
 where
     H: Hasher<Error = BLSError>,
     P: SWModelParameters,
